@@ -1,0 +1,111 @@
+#include <Wire.h>
+#include <Adafruit_INA219.h>
+#include <Wire.h> 
+#include <LiquidCrystal.h>
+const int rs = 2, en = 3, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+Adafruit_INA219 ina219;
+#include "DHT.h"
+int cnt=0;
+
+#define DHTPIN A0  
+#define DHTTYPE DHT11   
+DHT dht(DHTPIN, DHTTYPE);
+int relay=A2;
+int relay1=A1;
+void setup(void) 
+{
+  Serial.begin(9600);
+  lcd.begin(16,2);
+  
+  lcd.print("  WELCOME ");
+  dht.begin();
+  pinMode(relay,OUTPUT);
+  pinMode(relay1,OUTPUT);
+  digitalWrite(relay,1);
+  digitalWrite(relay1,1);
+  
+  uint32_t currentFrequency;
+    
+  if (! ina219.begin()) {
+    Serial.println("Failed to find INA219 chip");
+    while (1) { delay(10); }
+  }
+  
+dht.begin();
+  Serial.println("Measuring voltage and current with INA219 ...");
+
+}
+
+void loop(void) 
+{
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
+  int cs=0;
+  shuntvoltage = ina219.getShuntVoltage_mV();
+  busvoltage = ina219.getBusVoltage_V();
+  current_mA = ina219.getCurrent_mA();
+  power_mW = ina219.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
+  if(busvoltage<1.1)
+  busvoltage=0;
+  if(current_mA<1.5)
+  current_mA=0;
+  if(power_mW<1.5)
+  current_mA=0;
+  int bp=map(busvoltage,2.5, 3.7,1,100);
+  int t = dht.readTemperature();
+  int bs=2-digitalRead(relay1);
+  
+   
+ 
+  
+  if(busvoltage<2.6)
+  bp=0;
+  if(busvoltage>3.9)
+  {
+    cs=1;
+   bp=100;
+  }
+
+  lcd.clear();
+  lcd.print("V:"+String(busvoltage,1) + " I:"+ String(current_mA,1) + " "+ String(bp)  +"%");
+  lcd.setCursor(0,1);
+  lcd.print("P:"+String(power_mW,1) + " T:"+ String(t)+ " B:"+ String(bs));
+
+cnt=cnt+1;
+ if(cnt>25)
+ {
+  cnt=0; 
+ 
+   Serial.print(busvoltage); Serial.print(",");
+  Serial.print(current_mA); Serial.print(",");
+  Serial.print(power_mW); Serial.print(",");
+  Serial.print(bp); Serial.print(",");
+  Serial.print(String(t));Serial.print(",");
+   Serial.print(String(bs));Serial.print(",");
+   Serial.println(",0");
+ }
+  if(t>40)
+  {
+    digitalWrite(relay,0);
+   
+  }
+  else
+  {
+     digitalWrite(relay,1);
+  }
+
+
+   if(bp<50 && digitalRead(relay1)==1)
+  {
+    digitalWrite(relay1,0);
+   
+  }
+  
+
+  delay(200);
+}
